@@ -1,0 +1,926 @@
+# Project-b2000
+Flamue kukaj  
+Title: Soccer Metrics 2020-2024 seasons
+
+# Load required libraries
+library(dplyr)
+library(tidyr)
+
+# Load the dataset
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# View the structure of the dataset
+str(data)
+
+# Check for missing values
+missing_summary <- sapply(data, function(x) sum(is.na(x)))
+print(missing_summary)
+
+# Handle missing values (example: replacing NAs with mean for numerical columns)
+data_clean <- data %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Save cleaned data
+write.csv(data_clean, "cleaned_englands_finest.csv", row.names = FALSE)
+# Load required libraries
+library(ggplot2)
+
+# Summary statistics
+summary(data_clean)
+
+# Visualize distribution of player ages
+ggplot(data_clean, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of Player Ages", x = "Age", y = "Count")
+
+#this would be the table of nationalities for premier league of 2024-2025
+
+# Load necessary library
+if (!require("knitr")) {
+  install.packages("knitr")
+  library(knitr)
+}
+
+# Create the dataset and this is 2024 data
+player_data <- data.frame(
+  Nationality = c(
+    "England", "Brazil", "France", "Netherlands", "Portugal", "Republic of Ireland", 
+    "Spain", "Denmark", "Argentina", "Scotland", "Germany", "Belgium", 
+    "Italy", "Sweden", "Nigeria", "Ghana", "Wales", "Colombia", 
+    "Poland", "Côte d'Ivoire", "Senegal", "Norway", "Ukraine", 
+    "Japan", "Jamaica", "Uruguay", "United States", "Mali", 
+    "Northern Ireland", "Türkiye", "Cameroon", "Ecuador", "Serbia", 
+    "Mexico", "Morocco", "Czech Republic", "Korea Republic", "Greece", 
+    "Australia", "Paraguay", "Egypt", "Hungary", "Switzerland", 
+    "Croatia", "Congo DR", "Burkina Faso", "Albania", "Algeria", 
+    "Kosovo", "Gabon", "New Zealand", "Romania", "Chile", "Gambia", 
+    "Guinea-Bissau", "Zambia", "Iraq", "Barbados", "Bosnia and Herzegovina", 
+    "Iceland", "Slovakia"
+  ),
+  Appearances = c(
+    1589230, 3018357, 2312897, 2216188, 2212613, 6459, 10411, 
+    8764, 9624, 3666, 6167, 7710, 5752, 4628, 86303, 84846, 82967, 
+    63788, 62637, 61502, 54746, 54668, 53076, 52688, 43148, 
+    42276, 42050, 41872, 4732, 4619, 33504, 32218, 32143, 
+    31886, 31605, 31324, 31240, 31096, 3773, 3364, 22479, 
+    22227, 22113, 22091, 21652, 2522, 28, 11277, 11260, 
+    11242, 11146, 1626, 1449, 1441, 1187, 180, 167, 1, 
+    1, 1, 1
+  )
+)
+
+# Display the table
+kable(player_data, col.names = c("Nationality", "Appearances"), caption = "Player Nationalities and Appearances")
+
+
+
+
+# Top 5 clubs by number of players
+top_clubs <- data_clean %>%
+  group_by(Club) %>%
+  summarise(Count = n()) %>%
+  arrange(desc(Count)) %>%
+  head(5)
+
+ggplot(top_clubs, aes(x = reorder(Club, -Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "green") +
+  theme_minimal() +
+  labs(title = "Top 5 Clubs by Number of Players", x = "Club", y = "Number of Players") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Correlation heatmap (numeric columns)
+library(corrplot)
+
+# Select only numeric columns
+numeric_data <- data_clean %>% select(where(is.numeric))
+
+# Compute correlation matrix
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+# Plot the correlation matrix as a heatmap
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust")
+
+# Load necessary library
+if (!require("knitr")) {
+  install.packages("knitr")
+  library(knitr)
+}
+
+# Create the dataset
+premier_league_data <- data.frame(
+  Rank = c(1, 2, 3, 4, 5),
+  Code = c("LIV", "CHE", "ARS", "NFO", "MNC"),
+  Team = c("Liverpool", "Chelsea", "Arsenal", "Nottingham Forest", "Manchester City")
+)
+
+# Display the table
+kable(premier_league_data, col.names = c("Rank", "Code", "Team"), caption = "Premier League Teams")
+
+# Goals per appearance (new feature)
+data_clean <- data_clean %>%
+  mutate(Goals_per_appearance = Goals / Appearances)
+
+# Boxplot for goals per appearance by position
+ggplot(data_clean, aes(x = Position, y = Goals_per_appearance)) +
+  geom_boxplot(fill = "orange") +
+  theme_minimal() +
+  labs(title = "Goals per Appearance by Position", x = "Position", y = "Goals per Appearance")
+
+# Clustering players based on statistics (K-means clustering)
+set.seed(123)
+cluster_data <- data_clean %>% select(Age, Appearances, Goals, Wins, Losses)
+kmeans_result <- kmeans(cluster_data, centers = 3, nstart = 25)
+
+# Add the cluster assignments to the dataset
+data_clean$Cluster <- factor(kmeans_result$cluster)
+
+# Visualize clustering result
+ggplot(data_clean, aes(x = Age, y = Goals, color = Cluster)) +
+  geom_point(alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Player Clusters Based on Age and Goals", x = "Age", y = "Goals")
+# Split the data into top half players based on the number of goals
+top_half_players <- data_clean %>%
+  arrange(desc(Goals)) %>%
+  head(n = floor(nrow(data_clean) / 2))
+
+# Plot for top half players
+# Select top 15 players based on the number of goals
+top_players <- data_clean %>%
+  arrange(desc(Goals)) %>%
+  head(15)
+
+# Plot for top 15 players
+ggplot(top_players, aes(x = reorder(Name, -Goals), y = Goals)) +
+  geom_bar(stat = "identity", fill = "dodgerblue") +
+  theme_minimal() +
+  labs(title = "Top 15 Players by Goals Scored", x = "Player Name", y = "Goals") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) # Reduced text size
+
+
+# Split the data into bottom half players based on the number of goals
+# Select bottom half players based on the number of goals
+bottom_half_players <- data_clean %>%
+  arrange(desc(Goals)) %>%
+  tail(n = floor(nrow(data_clean) / 2)) %>%
+  head(15) # Limit to top 15 bottom players
+
+# Plot for top 15 bottom players
+ggplot(bottom_half_players, aes(x = reorder(Name, -Goals), y = Goals)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  theme_minimal() +
+  labs(title = "Bottom Half Players by Goals Scored (Top 15)", x = "Player Name", y = "Goals") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) # Adjust text size
+
+# Calculate goals per appearance
+# Calculate goals per game
+data_clean <- data_clean %>%
+  mutate(Goals_per_game = Goals / Appearances)
+
+# Load necessary library for annotation
+library(ggrepel)
+
+# Create the scatter plot
+ggplot(data_clean, aes(x = Appearances, y = Goals_per_game, color = Position)) +
+  geom_point(size = 3, alpha = 0.7) +  # Scatter points
+  geom_smooth(method = "lm", se = FALSE, color = "gray", linetype = "dashed") +  # Trend line
+  geom_text_repel(
+    data = data_clean %>% arrange(desc(Goals_per_game)) %>% head(5),  # Highlight top 5 performers
+    aes(label = Name),
+    size = 4,
+    max.overlaps = 10
+  ) +
+  labs(
+    title = "Scoring Efficiency vs. Appearances",
+    subtitle = "Highlighting Top Performers",
+    x = "Appearances",
+    y = "Goals per Game",
+    color = "Player Position"
+  ) +
+  theme_minimal(base_size = 14) +  # Cleaner theme with larger font
+  theme(legend.position = "bottom", plot.title.position = "plot")
+
+# Filter data to avoid issues with log scales (no zero or negative values)
+data_clean <- data_clean %>%
+  filter(Appearances > 0, Goals > 0) %>%
+  mutate(
+    Goals_per_game = Goals / Appearances,
+    Log_Appearances = log10(Appearances),
+    Log_Goals_per_game = log10(Goals_per_game)
+  )
+
+# Load required libraries
+library(ggrepel)
+library(ggplot2)
+library(dplyr)
+
+# Enhanced Scatter plot with annotations, log-transformed axes, and smooth curve
+ggplot(data_clean, aes(x = Appearances, y = Goals_per_game, color = Position)) +
+  geom_point(size = 3, alpha = 0.8, shape = 16) +  # Improved point style
+  geom_smooth(method = "lm", se = FALSE, color = "gray30", linetype = "dotdash", size = 0.8) +  # Trendline
+  geom_text_repel(
+    data = data_clean %>% top_n(5, Goals_per_game),  # Annotate top performers
+    aes(label = Name),
+    size = 4,
+    max.overlaps = 10,
+    box.padding = 0.3,
+    segment.color = "gray70",
+    segment.size = 0.5
+  ) +
+  scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +  # Logarithmic scale for x-axis
+  scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +  # Logarithmic scale for y-axis
+  scale_color_brewer(palette = "Set2") +  # Aesthetic color palette
+  theme_minimal(base_size = 15) +  # Increased text size for readability
+  labs(
+    title = "Scoring Efficiency vs. Appearances (Logarithmic Scale)",
+    subtitle = "Top performers annotated for better insights",
+    x = "Log of Appearances",
+    y = "Log of Goals per Game (Efficiency)",
+    color = "Player Position"
+  ) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank()  # Hide minor gridlines for clarity
+  )
+
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the dataset 
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid shots and goals data
+filtered_data <- data %>%
+  filter(Shots > 0 & Goals >= 0) %>%
+  mutate(Shot_Percentage = (Goals / Shots) * 100)
+
+# Select the top 10 players by shot percentage
+top_players <- filtered_data %>%
+  arrange(desc(Shot_Percentage)) %>%
+  head(10)
+
+# Create a horizontal bar plot
+ggplot(top_players, aes(x = reorder(Name, Shot_Percentage), y = Shot_Percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  # Flip coordinates for a horizontal bar plot
+  labs(
+    title = "Top 10 Players by Shot Percentage",
+    x = "Player Name",
+    y = "Shot Percentage (%)"
+  ) +
+  theme_minimal()
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid shots and goals data
+filtered_data <- data %>%
+  filter(Shots > 0 & Goals >= 0) %>%
+  mutate(Shot_Percentage = (Goals / Shots) * 100)
+
+# Select players ranked 11–20 by shot percentage
+next_10_players <- filtered_data %>%
+  arrange(desc(Shot_Percentage)) %>%
+  slice(11:20)
+
+# Create a horizontal bar plot
+ggplot(next_10_players, aes(x = reorder(Name, Shot_Percentage), y = Shot_Percentage)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  coord_flip() +  # Flip coordinates for a horizontal bar plot
+  labs(
+    title = "Players Ranked 11–20 by Shot Percentage",
+    x = "Player Name",
+    y = "Shot Percentage (%)"
+  ) +
+  theme_minimal()
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid shots and goals data
+filtered_data <- data %>%
+  filter(Shots > 0 & Goals >= 0) %>%
+  mutate(Shot_Percentage = (Goals / Shots) * 100)
+
+# Select players ranked 21–30 by shot percentage
+next_10_players <- filtered_data %>%
+  arrange(desc(Shot_Percentage)) %>%
+  slice(21:30)
+
+# Create a horizontal bar plot
+ggplot(next_10_players, aes(x = reorder(Name, Shot_Percentage), y = Shot_Percentage)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  coord_flip() +  # Flip coordinates for a horizontal bar plot
+  labs(
+    title = "Players Ranked 21–30 by Shot Percentage",
+    x = "Player Name",
+    y = "Shot Percentage (%)"
+  ) +
+  theme_minimal()
+
+
+# Load the dataset
+data_clean <- read_excel("C:/Users/KUKAJ/Downloads//Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+install.packages("readxl")
+library(readxl)
+
+# Load the dataset directly from the Excel file
+data_clean <- read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Inspect the data
+head(data_clean)
+
+# Filter the relevant columns (Goals and Appearances)
+data <- data_clean[, c("Goals", "Appearances")]
+data <- na.omit(data)  # Remove rows with missing values
+
+# Create a linear regression model
+model <- lm(Goals ~ Appearances, data = data)
+
+# Summary of the regression model
+summary(model)
+
+# Plot the data and regression line
+library(ggplot2)
+ggplot(data, aes(x = Appearances, y = Goals)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Linear Regression: Goals vs Appearances",
+       x = "Appearances",
+       y = "Goals") +
+  theme_minimal()
+
+
+# Install and load necessary libraries
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset directly from the Excel file
+data_clean <- read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Inspect the data
+head(data_clean)
+
+# Filter the relevant columns (Goals and Appearances) and remove rows with missing or zero values
+data <- data_clean[, c("Goals", "Appearances")] %>%
+  filter(!is.na(Goals), !is.na(Appearances), Goals > 0, Appearances > 0)
+
+# Apply log transformations for Goals and Appearances
+data <- data %>%
+  mutate(
+    Log_Goals = log10(Goals),
+    Log_Appearances = log10(Appearances)
+  )
+
+# Create a linear regression model using the log-transformed variables
+model <- lm(Log_Goals ~ Log_Appearances, data = data)
+
+# Summary of the regression model
+summary(model)
+
+# Plot the log-transformed data and regression line
+ggplot(data, aes(x = Log_Appearances, y = Log_Goals)) +
+  geom_point(color = "blue", size = 2, alpha = 0.7) +  # Add transparency for better visualization
+  geom_smooth(method = "lm", color = "red", se = FALSE, linetype = "dashed") +  # Dashed regression line
+  labs(
+    title = "Log-Log Linear Regression: Goals vs Appearances",
+    x = "Appearances",
+    y = "Goals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  )
+
+# Load necessary libraries
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid appearances and goals data
+filtered_data <- data %>%
+  filter(Appearances > 0 & Goals >= 0)
+
+# Create a scatter plot with linear regression lines for each position
+ggplot(filtered_data, aes(x = Appearances, y = Goals, color = Position)) +
+  geom_point(alpha = 0.7) +  # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +  # Linear regression lines
+  labs(
+    title = "Linear Regression of Goals vs Appearances by Position",
+    x = "Appearances",
+    y = "Goals",
+    color = "Position"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+# Load necessary libraries
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid appearances and goals data
+filtered_data <- data %>%
+  filter(Appearances > 0 & Goals > 0)  # Ensure no zero or negative values for log scale
+
+# Create a scatter plot with logarithmic scales and linear regression lines for each position
+ggplot(filtered_data, aes(x = Appearances, y = Goals, color = Position)) +
+  geom_point(alpha = 0.7) +  # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +  # Linear regression lines
+  scale_x_log10() +  # Logarithmic scale for x-axis
+  scale_y_log10() +  # Logarithmic scale for y-axis
+  labs(
+    title = "Log-Log Linear Regression of Goals vs Appearances by Position",
+    x = "Appearances",
+    y = "Goals",
+    color = "Position"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title = element_text(size = 12)
+  )
+
+
+# Load necessary libraries
+library(ggplot2)
+
+# Data for Top Goalkeepers
+top_goalkeepers <- data.frame(
+  Name = c("Bernd Leno", "Matt Macey", "Rúnar Alex Rúnarsson"),
+  Saves = c(28.0, 0.0, 0.0)
+)
+
+# Data for Bottom Goalkeepers
+bottom_goalkeepers <- data.frame(
+  Name = c("Emiliano Martínez", "Fabri", "Jed Steer"),
+  Saves = c(4.0, 3.0, 2.0)
+)
+
+# Plot for Top Goalkeepers
+ggplot(top_goalkeepers, aes(x = reorder(Name, -Saves), y = Saves)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Top Half Goalkeepers - Saves",
+       x = "Goalkeeper",
+       y = "Saves") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot for Bottom Goalkeepers
+ggplot(bottom_goalkeepers, aes(x = reorder(Name, -Saves), y = Saves)) +
+  geom_bar(stat = "identity", fill = "coral") +
+  labs(title = "Bottom Half Goalkeepers - Saves",
+       x = "Goalkeeper",
+       y = "Saves") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Load necessary libraries
+# Load necessary libraries
+library(ggplot2)
+
+# Data for Top Goalkeepers (Season)
+top_goalkeepers <- data.frame(
+  Name = c("Joe Hart", "David de Gea", "Lukasz Fabianski", "Hugo Lloris", "Wayne Hennessey", "Kasper Schmeichel", "Jordan Pickford", "Adrián", "Scott Carson", "Tom Heaton", "John Ruddy", "Mat Ryan", "Alex McCarthy", "Martin Dubravka", "Fraser Forster", "Nick Pope", "Bernd Leno", "Rui Patrício", "Jonas Lössl", "Ederson", "Vicente Guaita", "Kepa Arrizabalaga", "Alisson", "Aaron Ramsdale", "Paulo Gazzaniga", "Lee Grant", "Dean Henderson", "Eldin Jakupovic", "Darren Randolph", "Willy Caballero", "Karl Darlow", "Angus Gunn", "Loris Karius", "Emiliano Martínez"),
+  Saves = c(941.0, 870.0, 807.0, 703.0, 617.0, 599.0, 462.0, 454.0, 433.0, 408.0, 389.0, 340.0, 314.0, 261.0, 259.0, 237.0, 222.0, 195.0, 191.0, 184.0, 182.0, 142.0, 137.0, 132.0, 127.0, 99.0, 97.0, 94.0, 85.0, 72.0, 65.0, 63.0, 51.0, 44.0)
+)
+
+# Data for Bottom Goalkeepers (Season)
+bottom_goalkeepers <- data.frame(
+  Name = c("Sergio Romero", "Fabri", "David Martin", "Ørjan Nyland", "David Button", "Danny Ward", "Sam Johnstone", "Simon Moore", "Alphonse Areola", "Jed Steer", "Marek Rodák", "Rúnar Alex Rúnarsson", "Alfie Whiteman", "Harry Lewis", "Lovre Kalinic", "Brandon Austin", "Nathan Trott", "Jonathan Bond", "Mark Gillespie", "Michael Verrips", "Wes Foderingham", "Daniel Langley", "Jason Steele", "Christian Walton", "Zack Steffen", "Robert Sánchez", "Kamil Grabara", "Matt Macey", "Bailey Peacock-Farrell", "Will Norris", "Elia Caprile", "Kiko Casilla", "João Virgínia", "Stephen Henderson", "Caoimhin Kelleher"),
+  Saves = c(20.0, 16.0, 15.0, 15.0, 14.0, 9.0, 6.0, 5.0, 3.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+)
+
+# Plot for Top Goalkeepers
+ggplot(top_goalkeepers, aes(x = reorder(Name, -Saves), y = Saves)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Top Half Goalkeepers - Total Saves (Season)",
+       x = "Goalkeeper",
+       y = "Total Saves") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.5, lineheight = 1.5),
+        axis.title.x = element_text(margin = margin(t = 20)))
+
+# Plot for Bottom Goalkeepers
+ggplot(bottom_goalkeepers, aes(x = reorder(Name, -Saves), y = Saves)) +
+  geom_bar(stat = "identity", fill = "coral") +
+  labs(title = "Bottom Half Goalkeepers - Total Saves (Season)",
+       x = "Goalkeeper",
+       y = "Total Saves") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.5, lineheight = 1.5),
+        axis.title.x = element_text(margin = margin(t = 20)))
+# Load necessary libraries
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+install.packages("readxl")
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the Excel file
+goalkeepers_data <- read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", 
+                               sheet = "dataset - 2020-09-24")
+
+# Filter for goalkeepers only
+goalkeepers <- goalkeepers_data %>% filter(Position == "Goalkeeper")
+
+# Calculate goals saved per appearance
+goalkeepers <- goalkeepers %>%
+  mutate(Goals_Saved_per_Appearance = ifelse(Appearances > 0, Saves / Appearances, 0))
+
+# Filter out players without appearances
+goalkeepers_filtered <- goalkeepers %>% filter(Appearances > 0)
+
+# Sort by Goals Saved per Appearance
+goalkeepers_sorted <- goalkeepers_filtered %>%
+  arrange(desc(Goals_Saved_per_Appearance))
+
+# Create the enhanced bar plot
+ggplot(data = goalkeepers_sorted, aes(x = reorder(Name, Goals_Saved_per_Appearance), 
+                                      y = Goals_Saved_per_Appearance)) +
+  geom_bar(stat = "identity", fill = "dodgerblue", width = 0.7) +
+  geom_text(aes(label = round(Goals_Saved_per_Appearance, 2)), 
+            hjust = -0.3, size = 4) +
+  coord_flip() +  # Flip coordinates for horizontal bars
+  labs(title = "Goals Saved per Appearance by Goalkeepers",
+       x = "Goalkeeper",
+       y = "Goals Saved per Appearance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10, face = "bold"),  # Bold and clear goalkeeper names
+    axis.text.x = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 16, hjust = 0.5)
+  )
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the Excel file
+goalkeepers_data <- read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", 
+                               sheet = "dataset - 2020-09-24")
+
+# Filter for goalkeepers only
+goalkeepers <- goalkeepers_data %>% filter(Position == "Goalkeeper")
+
+# Filter out rows with zero appearances or saves to avoid log(0) issues
+goalkeepers_filtered <- goalkeepers %>% filter(Appearances > 0, Saves > 0)
+
+# Split the data into two groups
+split_index <- nrow(goalkeepers_filtered) %/% 2
+goalkeepers_group1 <- goalkeepers_filtered[1:split_index, ]
+goalkeepers_group2 <- goalkeepers_filtered[(split_index + 1):nrow(goalkeepers_filtered), ]
+
+# Function to create a scatter plot for a group
+create_plot <- function(data, title) {
+  ggplot(data, aes(x = Appearances, y = Saves, label = Name)) +
+    geom_point(color = "dodgerblue", size = 3) +
+    geom_text(aes(label = Name), nudge_y = 0.1, size = 3) +  # Place names above dots
+    scale_x_log10() +  # Apply log scaling to x-axis
+    scale_y_log10() +  # Apply log scaling to y-axis
+    labs(title = title,
+         x = "Appearances (Log Scale)",
+         y = "Total Saves (Log Scale)") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 16, hjust = 0.5),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10)
+    )
+}
+
+# Create and display the plots
+plot1 <- create_plot(goalkeepers_group1, "Appearances vs Saves (Log Scale) - Group 1")
+plot2 <- create_plot(goalkeepers_group2, "Appearances vs Saves (Log Scale) - Group 2")
+
+# Display the plots
+print(plot1)
+print(plot2)
+
+
+
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for players with valid positions and appearances
+filtered_data <- data %>%
+  filter(Appearances > 0) %>%
+  group_by(Position) %>%
+  summarise(Total_Playing_Time = sum(Appearances), .groups = "drop")
+
+# Create a bar plot to compare playing time across positions
+ggplot(filtered_data, aes(x = reorder(Position, -Total_Playing_Time), y = Total_Playing_Time, fill = Position)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Total Playing Time by Position",
+    x = "Position",
+    y = "Total Playing Time (Appearances)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Filter the data for valid goal-related columns
+filtered_data <- data %>%
+  summarise(
+    Headers = sum(`Headed goals`, na.rm = TRUE),
+    Shots = sum(`Goals with right foot`, na.rm = TRUE) + sum(`Goals with left foot`, na.rm = TRUE),
+    Penalties = sum(`Penalties scored`, na.rm = TRUE),
+    Freekicks = sum(`Freekicks scored`, na.rm = TRUE),
+    Errors = sum(`Errors leading to goal`, na.rm = TRUE)
+  )
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyr)  # Required for pivot_longer
+
+# Load the dataset (adjust the file path as needed)
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Summarize the data for relevant goal-related categories
+filtered_data <- data %>%
+  summarise(
+    Headers = sum(`Headed goals`, na.rm = TRUE),
+    Shots = sum(`Goals with right foot`, na.rm = TRUE) + sum(`Goals with left foot`, na.rm = TRUE),
+    Penalties = sum(`Penalties scored`, na.rm = TRUE),
+    Freekicks = sum(`Freekicks scored`, na.rm = TRUE),
+    Errors = sum(`Errors leading to goal`, na.rm = TRUE)
+  )
+
+# Reshape the summarized data for plotting
+plot_data <- filtered_data %>%
+  tidyr::pivot_longer(cols = everything(), names_to = "Category", values_to = "Count")
+
+# Create a bar plot with a log scale
+ggplot(plot_data, aes(x = reorder(Category, -Count), y = Count, fill = Category)) +
+  geom_bar(stat = "identity", alpha = 0.8) +
+  scale_y_log10() +  # Logarithmic scale for the y-axis
+  labs(
+    title = "Goal-Related Statistics (Log Scale)",
+    x = "Category",
+    y = "Log of Count",
+    fill = "Category"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    legend.position = "none"
+  ) +
+  geom_text(aes(label = Count), vjust = -0.5, size = 4, color = "black")
+
+
+# Load the necessary library
+library(tidyr)
+
+# Check the structure of filtered_data
+if (!exists("filtered_data")) stop("filtered_data does not exist. Please ensure it is created correctly.")
+
+# Ensure filtered_data is a data frame
+filtered_data <- as.data.frame(filtered_data)
+
+# Pivot the data
+goal_methods <- filtered_data %>%
+  pivot_longer(
+    cols = everything(),  # Pivot all columns
+    names_to = "Method",  # Name for the new column with original column names
+    values_to = "Goals"   # Name for the new column with values
+  )
+
+# Check the pivoted data
+print(goal_methods)
+# Transform data for plotting
+goal_methods <- filtered_data %>%
+  pivot_longer(cols = everything(), names_to = "Method", values_to = "Goals")
+
+# Create a bar plot for goals by method
+ggplot(goal_methods, aes(x = reorder(Method, -Goals), y = Goals, fill = Method)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Goals Scored Categorized by Method",
+    x = "Method",
+    y = "Number of Goals"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+# Load necessary libraries
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+# Step 1: Load the dataset
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Step 2: Preprocess the data
+# Count players by nationality and calculate percentages
+nationality_distribution <- data %>%
+  group_by(Nationality) %>%
+  summarise(Player_Count = n()) %>%
+  mutate(Percentage = (Player_Count / sum(Player_Count)) * 100) %>%
+  arrange(desc(Percentage))  # Sort by percentage in descending order
+
+# Step 3: Create a pie chart for nationality distribution
+ggplot(nationality_distribution, aes(x = "", y = Percentage, fill = Nationality)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +  # Transform to pie chart
+  labs(
+    title = "Percentage of Players by Nationality",
+    x = "",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14)
+  ) +
+  scale_fill_discrete(name = "Nationality")  # Add legend for nationalities
+
+# Optional: Print nationality data for reference
+print(nationality_distribution)
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(plotly)
+
+# Step 1: Load the dataset
+data <- readxl::read_excel("C:/Users/KUKAJ/Downloads/Englands finest data.xlsx", sheet = "dataset - 2020-09-24")
+
+# Step 2: Preprocess the data
+# Count players by nationality and calculate percentages
+nationality_distribution <- data %>%
+  group_by(Nationality) %>%
+  summarise(Player_Count = n()) %>%
+  mutate(Percentage = (Player_Count / sum(Player_Count)) * 100) %>%
+  arrange(desc(Percentage))  # Sort by percentage in descending order
+
+# Step 3: Create an interactive pie chart using plotly
+interactive_pie <- plot_ly(
+  nationality_distribution,
+  labels = ~Nationality,
+  values = ~Percentage,
+  type = 'pie',
+  textinfo = 'label+percent',  # Show label and percentage
+  hoverinfo = 'label+percent+value',  # Show more details on hover
+  marker = list(colors = colorRampPalette(c("blue", "green", "orange", "red"))(nrow(nationality_distribution)))
+) %>%
+  layout(
+    title = "Percentage of Players by Nationality",
+    showlegend = TRUE
+  )
+
+# Step 4: Render the interactive pie chart
+interactive_pie
+
+# Ensure both vectors are of the same length
+Nation <- c(
+  "England", "Brazil", "France", "Netherlands", "Portugal", "Republic of Ireland", "Spain", "Denmark",
+  "Argentina", "Scotland", "Germany", "Belgium", "Italy", "Sweden", "Nigeria", "Ghana", "Wales", 
+  "Colombia", "Poland", "Côte d'Ivoire", "Senegal", "Norway", "Ukraine", "Japan", "Jamaica", 
+  "Uruguay", "United States", "Mali", "Northern Ireland", "Türkiye", "Cameroon", "Ecuador", 
+  "Serbia", "Mexico", "Morocco", "Czech Republic", "Korea Republic", "Greece", "Australia", 
+  "Paraguay", "Egypt", "Hungary", "Switzerland", "Croatia", "Congo DR", "Burkina Faso", "Albania", 
+  "Algeria", "Kosovo", "Gabon", "New Zealand", "Romania", "Chile", "Gambia", "Guinea-Bissau", 
+  "Zambia", "Iraq", "Barbados", "Bosnia and Herzegovina", "Iceland", "Slovakia"
+)
+
+Players <- c(
+  1589230, 3018357, 2312897, 2216188, 2212613, 6459, 10411, 8764, 9624, 3666, 
+  6167, 7710, 5752, 4628, 86303, 84846, 82967, 63788, 62637, 61502, 
+  54746, 54668, 53076, 52688, 43148, 42276, 42050, 41872, 4732, 4619, 
+  33504, 32218, 32143, 31886, 31605, 31324, 31240, 31096, 3773, 3364, 
+  22479, 22227, 22113, 22091, 21652, 2522, 28, 11277, 11260, 11242, 
+  11146, 1626, 1449, 1441, 1187, 180, 167, 1, 1, 1, 1
+)
+
+# Verify lengths match
+if (length(Nation) != length(Players)) {
+  stop("Nation and Players vectors must have the same length!")
+}
+
+# Create the data frame
+data <- data.frame(Nation, Players)
+
+# Install ggplot2 if not already installed
+if (!require(ggplot2)) {
+  install.packages("ggplot2")
+  library(ggplot2)
+}
+
+# Generate the pie chart
+ggplot(data, aes(x = "", y = Players, fill = Nation)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Distribution of Players by Nationalities", x = NULL, y = NULL) +
+  theme_void() +
+  theme(legend.position = "right")
+
+# Ensure both vectors are of the same length
+Nation <- c(
+  "England", "Brazil", "France", "Netherlands", "Portugal", "Republic of Ireland", "Spain", "Denmark",
+  "Argentina", "Scotland", "Germany", "Belgium", "Italy", "Sweden", "Nigeria", "Ghana", "Wales", 
+  "Colombia", "Poland", "Côte d'Ivoire", "Senegal", "Norway", "Ukraine", "Japan", "Jamaica", 
+  "Uruguay", "United States", "Mali", "Northern Ireland", "Türkiye", "Cameroon", "Ecuador", 
+  "Serbia", "Mexico", "Morocco", "Czech Republic", "Korea Republic", "Greece", "Australia", 
+  "Paraguay", "Egypt", "Hungary", "Switzerland", "Croatia", "Congo DR", "Burkina Faso", "Albania", 
+  "Algeria", "Kosovo", "Gabon", "New Zealand", "Romania", "Chile", "Gambia", "Guinea-Bissau", 
+  "Zambia", "Iraq", "Barbados", "Bosnia and Herzegovina", "Iceland", "Slovakia"
+)
+
+Players <- c(
+  1589230, 3018357, 2312897, 2216188, 2212613, 6459, 10411, 8764, 9624, 3666, 
+  6167, 7710, 5752, 4628, 86303, 84846, 82967, 63788, 62637, 61502, 
+  54746, 54668, 53076, 52688, 43148, 42276, 42050, 41872, 4732, 4619, 
+  33504, 32218, 32143, 31886, 31605, 31324, 31240, 31096, 3773, 3364, 
+  22479, 22227, 22113, 22091, 21652, 2522, 28, 11277, 11260, 11242, 
+  11146, 1626, 1449, 1441, 1187, 180, 167, 1, 1, 1, 1
+)
+
+# Verify lengths match
+if (length(Nation) != length(Players)) {
+  stop("Nation and Players vectors must have the same length!")
+}
+
+# Create the data frame
+data <- data.frame(Nation, Players)
+
+# Install plotly if not already installed
+if (!require(plotly)) {
+  install.packages("plotly")
+  library(plotly)
+}
+
+# Generate the interactive pie chart
+fig <- plot_ly(
+  data,
+  labels = ~Nation,
+  values = ~Players,
+  type = 'pie',
+  textinfo = 'label+percent',
+  insidetextorientation = 'radial'
+)
+
+fig <- fig %>% layout(
+  title = "Interactive Distribution of Players by Nationalities",
+  showlegend = TRUE
+)
+
+fig
+
+
